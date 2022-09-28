@@ -47,13 +47,13 @@ app = Flask(__name__)
 @app.route("/")
 def main():
     return (
-        f"Welcome to the Climate App Home Page!<br>"
-        f"Available Routes Below:<br>"
+        f"Welcome! This is the Climate App Home Page! <br>"
+        f"Available Routes can be found Below:<br>"
         f"Precipitation measurement over the last 12 months: /api/v1.0/precipitation<br>"
-        f"A list of stations and their respective station numbers: /api/v1.0/stations<br>"
-        f"Temperature observations at the most active station over the previous 12 months: /api/v1.0/tobs<br>"
-        f"Enter a start date (yyyy-mm-dd) to retrieve the minimum, maximum, and average temperatures for all dates after the specified date: /api/v1.0/<start><br>"
-        f"Enter both a start and end date (yyyy-mm-dd) to retrieve the minimum, maximum, and average temperatures for that date range: /api/v1.0/<start>/<end><br>"
+        f"A list of stations and their station numbers: /api/v1.0/stations<br>"
+        f"Temperature observations for the most active station within the last 12 months: /api/v1.0/tobs<br>"
+        f"Enter a start date (yyyy-mm-dd) to get the minimum, maximum, and average temperatures for all dates after a specified date: /api/v1.0/<start><br>"
+        f"Enter both a start and end date (yyyy-mm-dd) to get the minimum, maximum, and average temperatures for the date range: /api/v1.0/<start>/<end><br>"
     )
 
 
