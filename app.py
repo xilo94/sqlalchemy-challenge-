@@ -67,24 +67,25 @@ def precipitation():
 
 @app.route("/api/v1.0/stations")
 def stations():
-# Create our session (link) from Python to the DB
 
-session = Session(engine)
+# Create session
 
-"""Return a list of all Stations"""
+    session = Session(engine)
+
+    """Return a list of all Stations"""
 
 # Query all Stations
 
-results = session.query(station.station).\
+    results = session.query(station.station).\
                  order_by(station.station).all()
 
-session.close()
+    session.close()
 
 # Convert list of tuples into normal list
 
-stations_all = list(np.ravel(results))
+    stations_all = list(np.ravel(results))
 
-return jsonify(stations_all)
+    return jsonify(stations_all)
 
 @app.route("/api/v1.0/tobs")
 def tobs():
@@ -94,76 +95,81 @@ def tobs():
     """Return a list of all TOBs"""
 # Query all tobs
 
-results = session.query(measurement.date,  measurement.tobs,measurement.prcp).\
+    results = session.query(measurement.date,  measurement.tobs,measurement.prcp).\
     filter(measurement.date >= '2016-08-23').\
     filter(measurement.station=='USC00519281').\
     order_by(measurement.date).all()
 
-session.close()
+    session.close()
 
    
 
 # Convert the list to Dictionary
-tobs_all_dict = []
-for prcp, date, tobs in results:
+
+    tobs_all_dict = []
+    for prcp, date, tobs in results:
         tobs_dict = {}
         tobs_dict["prcp"] = prcp
         tobs_dict["date"] = date
         tobs_dict["tobs"] = tobs
 
         tobs_all_dict.append(tobs_dict)
-return jsonify(tobs_all_dict)
+    return jsonify(tobs_all_dict)
     
 @app.route("/api/v1.0/<start_date>")
 def Start_date(start_date):
- # Create our session (link) from Python to the DB
- session = Session(engine)
+ 
+ # Create our session 
+ 
+    session = Session(engine)
 
- """Return a list of min, avg and max tobs for a start date"""
+    """Return a list of min, avg and max tobs for a start date"""
+
 # Query all tobs
 
-results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
-                filter(Measurement.date >= start_date).all()
+    results = session.query(func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)).\
+                filter(measurement.date >= start_date).all()
 
-session.close()
+    session.close()
 
 # Create a dictionary from the row data and append to a list of start_date_tobs
 
-start_date_tobs = []
+    start_date_tobs = []
 
-for min, avg, max in results:
+    for min, avg, max in results:
         start_date_tobs_dict = {}
         start_date_tobs_dict["min_temp"] = min
         start_date_tobs_dict["avg_temp"] = avg
         start_date_tobs_dict["max_temp"] = max
         start_date_tobs.append(start_date_tobs_dict) 
-return jsonify(start_date_tobs)
+    return jsonify(start_date_tobs)
 
 @app.route("/api/v1.0/<start_date>/<end_date>")
 def Start_end_date(start_date, end_date):
 
 # Create our session (link) from Python to the DB
-    session = Session(engine)
 
-    """Return a list of min, avg and max tobs for start and end dates"""
+session = Session(engine)
+
+"""Return a list of min, avg and max tobs for start and end dates"""
 # Query all tobs
 
-results = session.query(func.min(measurement.tobs), func.avg(measurement.tobs), func.max(Measurement.tobs)).\
+results = session.query(func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)).\
             filter(measurement.date >= start_date).filter(measurement.date <= end_date).all()
-
+        
 session.close()
   
 # Create a dictionary from the row data and append to a list of start_end_date_tobs
 
 start_end_tobs = []
 for min, avg, max in results:
-start_end_tobs_dict = {}
-start_end_tobs_dict["min_temp"] = min
-start_end_tobs_dict["avg_temp"] = avg
-start_end_tobs_dict["max_temp"] = max
-start_end_tobs.append(start_end_tobs_dict) 
+    start_and_end_tobs_dict = {}
+    start_and_end_tobs_dict["min_temp"] = min
+    start_and_end_tobs_dict["avg_temp"] = avg
+    start_and_end_tobs_dict["max_temp"] = max
+    start_and_end_tobs_dict.append(start_and_end_tobs_dict) 
     
-return jsonify(start_end_tobs)
+return jsonify(start_and_end_tobs_dict)
 
 if __name__ == "__main__":
     app.run(debug=True)
