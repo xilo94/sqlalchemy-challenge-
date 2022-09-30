@@ -1,145 +1,169 @@
 # set up and dependencies
-from tkinter.tix import COLUMN
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Float
-from sqlalchemy.types import Date
-from sqlalchemy.orm import Session, scoped_session, sessionmaker
-from sqlalchemy import func
+from lib2to3.pytree import _Results
+import numpy as np
+from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, func
 from flask import Flask, jsonify
 
 # Database Setup
 #################################################
-Base = declarative_base() 
-
-#create class for measurement table
-class measurement(Base):
-    __tablename__ = "measurement"
-    
-    id = Column(Integer, primary_key=True)
-    station = Column(String)
-    date = Column(Date)
-    prcp = Column(Float)
-    tobs = Column(Float)
-
-
-#creating class for station table
-class station(Base):
-    __tablename__ = "station"
-    
-    id = Column(Integer, primary_key=True)
-    station = Column(String)
-    name = Column(String)
-    latitude = Column(Float)
-    longitude = Column(Float)
-    elevation =  Column(Float)
-
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
-conn = engine.connect()
-session = scoped_session(sessionmaker(bind=engine))
+Base = automap_base() 
+Base.prepare(engine, reflect=True)
 
+# Save references to each table
+measurement = Base.classes.measurement
+station = Base.classes.station
 
-# establishing the app
+#################################################
+# Flask Setup
+#################################################
 app = Flask(__name__)
 
+#################################################
+# Flask Routes
+#################################################
 
-# Home page route
 @app.route("/")
-def main():
+def welcome():
+
+    """List all available API routes."""
+
     return (
-        f"Welcome! This is the Climate App Home Page! <br>"
-        f"Available Routes can be found Below:<br>"
-        f"Precipitation measurement over the last 12 months: /api/v1.0/precipitation<br>"
-        f"A list of stations and their station numbers: /api/v1.0/stations<br>"
-        f"Temperature observations for the most active station within the last 12 months: /api/v1.0/tobs<br>"
-        f"Enter a start date (yyyy-mm-dd) to get the minimum, maximum, and average temperatures for all dates after a specified date: /api/v1.0/<start><br>"
-        f"Enter both a start and end date (yyyy-mm-dd) to get the minimum, maximum, and average temperatures for the date range: /api/v1.0/<start>/<end><br>"
+    f"Welcome! This is the SQL-Alchemy APP API!<br/>"
+    f"Available Routes can be found here:<br/>"
+    f"/api/v1.0/precipitation<br/>"
+    f"/api/v1.0/stations<br/>"
+    f"/api/v1.0/tobs<br/>"
+    f"/api/v1.0/[start_date format:yyyy-mm-dd]<br/>"
+    f"/api/v1.0/[start_date format:yyyy-mm-dd]/[end_date format:yyyy-mm-dd]<br/>"
     )
 
-
-# precipitation route of last 12 months of precipitation data
-# /api/v1.0/precipitation
-# Convert the query results to a dictionary by using date as the key and prcp as the value.
-
-# Return the JSON representation of your dictionary.
-
 @app.route("/api/v1.0/precipitation")
-def precip():
+def precipitation():
+ # Create our session (link) from Python to the DB
+    session = Session(engine)
 
-    recent_prcp = session.query(str(measurement.date), measurement.prcp)\
-    .filter(measurement.date > '2016-08-22')\
-    .filter(measurement.date <= '2017-08-23')\
-    .order_by(measurement.date).all()
+    """Return a list of all Precipitation Data"""
+# Query all Precipitation
+    results = session.query(measurement.date, measurement.prcp).\
+        filter(measurement.date >= "2016-08-23").\
+        all()
 
-    # converting results to a dictionary with date as key and prcp as value
-    prcp_dict = dict(recent_prcp)
+    session.close()
 
-  
-    return jsonify(prcp_dict)
+# Convert the list to Dictionary
+    prcp_all_dict = []
+    for date,prcp  in results:
+        prcp_dict = {}
+        prcp_dict["date"] = date
+        prcp_dict["prcp"] = prcp
+               
+        prcp_all_dict.append(prcp_dict)
 
-# creating station route of a list of the stations in the dataset
-# /api/v1.0/stations
-# Return a JSON list of stations from the dataset.
+    return jsonify(prcp_all_dict)
+
 
 @app.route("/api/v1.0/stations")
 def stations():
+# Create our session (link) from Python to the DB
 
-    stations = session.query(station.name, station.station).all()
+session = Session(engine)
 
-    # converting results to a dict
-    stations_dict = dict(stations)
+"""Return a list of all Stations"""
 
-    
-    return jsonify(stations_dict)
+# Query all Stations
 
-# creating tobs route of temp observations for most active station over last 12 months
-# /api/v1.0/tobs
-# Query the dates and temperature observations of the most-active station for the previous year of data.
-# Return a JSON list of temperature observations for the previous year.
+results = session.query(station.station).\
+                 order_by(station.station).all()
+
+session.close()
+
+# Convert list of tuples into normal list
+
+stations_all = list(np.ravel(results))
+
+return jsonify(stations_all)
 
 @app.route("/api/v1.0/tobs")
 def tobs():
+# Create our session (link) from Python to the DB
+    session = Session(engine)
 
-    tobs_station = session.query(str(measurement.date), measurement.tobs)\
-    .filter(measurement.date > '2016-08-23')\
-    .filter(measurement.date <= '2017-08-23')\
-    .filter(measurement.station == "USC00519281")\
-    .order_by(measurement.date).all()
+    """Return a list of all TOBs"""
+# Query all tobs
 
-    # creating dict
-    tobs_dict = dict(tobs_station)
+results = session.query(measurement.date,  measurement.tobs,measurement.prcp).\
+    filter(measurement.date >= '2016-08-23').\
+    filter(measurement.station=='USC00519281').\
+    order_by(measurement.date).all()
 
-    
-    return jsonify(tobs_dict)
+session.close()
 
-
-
-
-# /api/v1.0/<start> and /api/v1.0/<start>/<end>
-# Return a JSON list of the minimum temperature, the average temperature, and the maximum temperature for a specified start or start-end range.
-# For a specified start, calculate TMIN, TAVG, and TMAX for all the dates greater than or equal to the start date.
-
-@app.route("/api/v1.0/<start>")
-@app.route("/api/v1.0/<start>/<end>")
-def start_date(start, end=None):
-
-    q = session.query(str(func.min(measurement.tobs)), str(func.max(measurement.tobs)), str(func.round(func.avg(measurement.tobs))))
-
-    if start:
-        q = q.filter(measurement.date >= start)
-
-    if end:
-        q = q.filter(measurement.date <= end)
    
 
-    results = q.all()[0]
+# Convert the list to Dictionary
+tobs_all_dict = []
+for prcp, date, tobs in results:
+        tobs_dict = {}
+        tobs_dict["prcp"] = prcp
+        tobs_dict["date"] = date
+        tobs_dict["tobs"] = tobs
 
-    keys = ["Min Temp", "Max Temp", "Avg Temp"]
+        tobs_all_dict.append(tobs_dict)
+return jsonify(tobs_all_dict)
+    
+@app.route("/api/v1.0/<start_date>")
+def Start_date(start_date):
+ # Create our session (link) from Python to the DB
+ session = Session(engine)
 
-    temp_dict = {keys[i]: results[i] for i in range(len(keys))}
+ """Return a list of min, avg and max tobs for a start date"""
+# Query all tobs
 
-    return jsonify(temp_dict)
+results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+                filter(Measurement.date >= start_date).all()
 
+session.close()
+
+# Create a dictionary from the row data and append to a list of start_date_tobs
+
+start_date_tobs = []
+
+for min, avg, max in results:
+        start_date_tobs_dict = {}
+        start_date_tobs_dict["min_temp"] = min
+        start_date_tobs_dict["avg_temp"] = avg
+        start_date_tobs_dict["max_temp"] = max
+        start_date_tobs.append(start_date_tobs_dict) 
+return jsonify(start_date_tobs)
+
+@app.route("/api/v1.0/<start_date>/<end_date>")
+def Start_end_date(start_date, end_date):
+
+# Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return a list of min, avg and max tobs for start and end dates"""
+# Query all tobs
+
+results = session.query(func.min(measurement.tobs), func.avg(measurement.tobs), func.max(Measurement.tobs)).\
+            filter(measurement.date >= start_date).filter(measurement.date <= end_date).all()
+
+session.close()
+  
+# Create a dictionary from the row data and append to a list of start_end_date_tobs
+
+start_end_tobs = []
+for min, avg, max in results:
+start_end_tobs_dict = {}
+start_end_tobs_dict["min_temp"] = min
+start_end_tobs_dict["avg_temp"] = avg
+start_end_tobs_dict["max_temp"] = max
+start_end_tobs.append(start_end_tobs_dict) 
+    
+return jsonify(start_end_tobs)
 
 if __name__ == "__main__":
     app.run(debug=True)
